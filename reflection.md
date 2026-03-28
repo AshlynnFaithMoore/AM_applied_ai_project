@@ -2,6 +2,9 @@
 
 ## 1. System Design
 
+1. Tracking pet care tasks
+2. Get constraints from user
+3. Curate a plan based on constraints
 **a. Initial design**
 
 - Briefly describe your initial UML design.
