@@ -10,10 +10,50 @@
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
+**Initial Design:**
+
+The PawPal+ system uses four core classes with a single-pet scope:
+
+1. **Owner**: Represents the pet owner with profile and planning constraints.
+   - Attributes: `owner_id`, `name`, `daily_time_budget_minutes`, `preferred_start_time`, `preferred_end_time`
+   - Responsibilities: manage owner preferences, validate time constraints, check if a given duration fits within budget
+
+2. **Pet**: Represents the pet and manages its associated tasks.
+   - Attributes: `pet_id`, `name`, `species`, `age`, `care_notes`, `tasks` (list)
+   - Responsibilities: store pet profile, add/remove tasks, retrieve active tasks
+
+3. **Task**: Represents an individual care task with metadata.
+   - Attributes: `task_id`, `title`, `category`, `duration_minutes`, `priority`, `required`, `due_by`, `active`
+   - Responsibilities: validate task properties (duration > 0, priority ∈ {low, medium, high}), compute priority weight, check if task fits owner's preferred time window, provide summary
+
+4. **Scheduler**: Orchestrates the planning logic; owns all scheduling decisions and reasoning.
+   - Attributes: `strategy`, `buffer_minutes`
+   - Responsibilities: rank tasks deterministically (required → priority → due_time → duration → title), generate a daily plan that respects time budget and preferred time window, provide explanations for plan selection
+
+**Relationships:**
+- Owner → Pet (1:1 aggregation; one owner manages one pet in this scope)
+- Pet → Task (1:* composition; tasks belong to the pet)
+- Scheduler depends on Owner and Pet for context and uses Task list to produce a plan
+
 **b. Design changes**
 
 - Did your design change during implementation?
+Yes
 - If yes, describe at least one change and why you made it.
+
+**Design Refinements:**
+
+After reviewing the skeleton, there were five key improvements:
+
+1. **Added ScheduleItem TypedDict** — The initial return type `list[dict]` was vague. I introduced a `ScheduleItem` TypedDict to clearly document the structure of each scheduled item (task_id, task_title, duration_minutes, priority, start_time, end_time, reason). This improves type safety and makes the API contract explicit for UI and test code.
+
+2. **Added Pet → Owner relationship** — Originally, Pet did not reference its Owner. I added an optional `owner` field to Pet so that if needed, Pet can access owner constraints (e.g., to validate task timing). This avoids passing Owner separately to every task validation.
+
+3. **Added validation hooks with `__post_init__`** — The initial skeleton had no validation. I added `__post_init__()` methods to Owner and Task to catch invalid inputs early (e.g., duration ≤ 0, priority not in {low, medium, high}, time format errors). This prevents invalid objects from being created and makes errors fail fast.
+
+4. **Added Scheduler plan caching** — Originally, `Scheduler` had no state and `explain_plan()` required the plan as a parameter. Now `generate_daily_plan()` caches the result in `self.plan`, and `explain_plan()` can optionally reference it. This simplifies the API and reduces coupling between methods.
+
+5. **Added docstrings** — Each class and method now has a docstring describing its purpose and behavior. This aligns with the project's emphasis on clear design documentation.
 
 ---
 
