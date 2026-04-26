@@ -87,10 +87,14 @@ Completed Whiskers task 't6' (weekly).
 - I chose string-based `HH:MM` and `YYYY-MM-DD` fields with strict validation for readability in UI/testing, accepting that richer date-time objects would be better for larger production systems.
 
 ## Testing Summary
-- Current status: **32 tests passed** (`python -m pytest -q`).
-- What worked well: validation, ranking order, budget/window enforcement, sorting, filtering, recurrence rollover, and conflict warning detection.
-- What did not work initially: some edge-case behavior needed iteration during development (especially around recurrence and overlap reasoning), which was resolved by adding targeted tests.
-- What I learned: small deterministic rules become robust when each behavior has focused unit tests and observable output examples.
+- **Automated tests:** 32 out of 32 tests passed (`python -m pytest -q`). Coverage includes validation rules, ranking order, budget/window enforcement, sorting, filtering, recurrence rollover, and conflict detection.
+- **Error handling:** invalid task/owner inputs fail fast with `ValueError` checks (duration, priority, date/time format, and invalid planning windows), which prevents silent bad state.
+- **Human evaluation:** schedule outputs and conflict warnings were manually reviewed via both `python main.py` and the Streamlit UI to confirm explanations match ranking behavior.
+- **Confidence scoring:** not implemented yet; reliability is currently measured through deterministic rules + automated test pass rate + human review.
+
+Concise reliability result:
+
+`32 out of 32 tests passed; early edge cases appeared around recurrence and overlap ordering, then stabilized after validation and targeted tests were added.`
 
 ## Reflection
 This project taught me that AI-oriented problem solving is strongest when design, implementation, and verification are tightly coupled. I learned to treat explainability as a product feature, not an afterthought, by making every scheduled item include a reason and by surfacing conflicts rather than hiding them. I also learned that practical trade-offs matter: a simpler, testable approach often wins over theoretical optimization for early-stage systems.
