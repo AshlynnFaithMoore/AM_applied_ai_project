@@ -1,118 +1,99 @@
-# PawPal+ (Module 2 Project)
+# PawPal+: AI-Assisted Pet Care Planner
 
-You are building **PawPal+**, a Streamlit app that helps a pet owner plan care tasks for their pet.
+## Original Project (Modules 1-3)
+My original project from Modules 1-3 is **PawPal+**, an AI-assisted pet care planner that helps owners organize daily care tasks across one or more pets. The original goal was to model owner constraints, pet needs, and task priority so the system could produce explainable daily schedules instead of a static to-do list. Over the module sequence, it evolved from class design and UML into a tested scheduling engine with validation, recurrence handling, and a Streamlit interface.
 
-## Scenario
+## Title and Summary
+PawPal+ generates practical, explainable pet-care schedules using owner time limits, task urgency, and due-time constraints. This matters because pet care is repetitive and high-stakes: missing feeding or medication can affect health, while overloading owners leads to skipped tasks. The project demonstrates how structured AI-style planning can make day-to-day routines more reliable and transparent.
 
-A busy pet owner needs help staying consistent with pet care. They want an assistant that can:
+## Architecture Overview
+The system combines a target AI architecture view and the current implemented core:
 
-- Track pet care tasks (walks, feeding, meds, enrichment, grooming, etc.)
-- Consider constraints (time available, priority, owner preferences)
-- Produce a daily plan and explain why it chose that plan
+- **Target architecture** includes a Retriever/RAG layer and an Agentic decision layer that can prioritize tasks, escalate missed medication, and recommend follow-up actions.
+- **Implemented core** includes Owner/Pet/Task domain models, a deterministic Scheduler, and explanation + conflict-warning outputs.
+- **Human and test checkpoints** are explicit: users review generated plans/warnings, and pytest validates ranking, filtering, recurrence, and conflict logic.
 
-Your job is to design the system first (UML), then implement the logic in Python, then connect it to the Streamlit UI.
+System diagram assets:
 
-## Features
+- Source diagram: `assets/pawpal_target_architecture.mmd`
+- Rendered diagram: `assets/pawpal_target_architecture.svg`
 
-- **Owner + Multi-Pet Management**
-	- Create an owner profile with time budget and preferred planning window.
-	- Add and manage multiple pets, each with its own task list.
+![PawPal Target Architecture](assets/pawpal_target_architecture.svg)
 
-- **Task Modeling + Validation**
-	- Task fields include priority, duration, optional due time/date, and recurrence frequency.
-	- Validation guards for invalid durations, priorities, and date/time formats.
-
-- **Priority-Aware Scheduling Algorithm**
-	- Builds daily plans using deterministic ranking:
-		1. required tasks first,
-		2. higher priority first,
-		3. earlier due time first,
-		4. shorter duration first,
-		5. alphabetical tie-breaker.
-
-- **Sorting by Time**
-	- Uses HH:MM sorting to present tasks in natural chronological order.
-
-- **Filtering Engine**
-	- Filter tasks by completion status and/or pet name for focused task views.
-
-- **Recurring Task Rollover**
-	- Completing a `daily` task auto-creates the next instance at +1 day.
-	- Completing a `weekly` task auto-creates the next instance at +7 days.
-
-- **Lightweight Conflict Warnings**
-	- Detects overlapping scheduled intervals across same or different pets.
-	- Returns non-fatal warnings so users can adjust tasks without app crashes.
-
-- **Explainable Plans**
-	- Every scheduled item includes a human-readable reason for selection.
-
-- **Tested Reliability**
-	- End-to-end pytest coverage for happy paths and edge cases.
-
-## 📸 Demo
-
-Save a screenshot of your Streamlit app as `pawpal_demo.png` in this project folder, then README will render it below:
-
-![PawPal App Demo](pawpal_demo.png)
-
-If the image does not appear, confirm the file exists at the project root with that exact name.
-
-## What you will build
-
-Your final app should:
-
-- Let a user enter basic owner + pet info
-- Let a user add/edit tasks (duration + priority at minimum)
-- Generate a daily schedule/plan based on constraints and priorities
-- Display the plan clearly (and ideally explain the reasoning)
-- Include tests for the most important scheduling behaviors
-
-## Getting started
-
-### Setup
+## Setup Instructions
+1. Clone this repository and move into the project directory.
+2. Create a virtual environment.
+3. Activate the environment.
+4. Install dependencies from `requirements.txt`.
+5. Run the Streamlit app.
 
 ```bash
+git clone <your-repo-url>
+cd AM_applied_ai_project-1
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
+streamlit run app.py
 ```
 
-### Suggested workflow
-
-1. Read the scenario carefully and identify requirements and edge cases.
-2. Draft a UML diagram (classes, attributes, methods, relationships).
-3. Convert UML into Python class stubs (no logic yet).
-4. Implement scheduling logic in small increments.
-5. Add tests to verify key behaviors.
-6. Connect your logic to the Streamlit UI in `app.py`.
-7. Refine UML so it matches what you actually built.
-
-## Smarter Scheduling
-
-The current scheduler includes several advanced behaviors beyond basic task ordering:
-
-- **Time-based sorting** using HH:MM values so tasks can be ordered by planned time.
-- **Task filtering** by completion status and pet name to support focused views.
-- **Recurring task rollover** for `daily` and `weekly` tasks, automatically creating the next occurrence when completed.
-- **Conflict detection warnings** that identify overlapping scheduled tasks across one or more pets without crashing the app.
-
-## Testing PawPal+
-
-Run the full test suite with:
+Optional verification commands:
 
 ```bash
-python -m pytest
+python main.py
+python -m pytest -q
 ```
 
-The tests cover core scheduling reliability, including:
+## Sample Interactions
+Below are examples captured from a real run of `python main.py`.
 
-- Task validation, completion status updates, and recurrence behavior (`once`/`daily`/`weekly`)
-- Pet task management (add/remove/list active tasks)
-- Owner constraints (time budget and preferred time windows)
-- Scheduler ranking, time sorting, filtering, and daily plan generation
-- Conflict detection for overlapping tasks and no-conflict boundary cases
+### Example 1: Conflict detection
+Input:
+- Owner has two pets (Mochi and Whiskers) with overlapping morning tasks.
 
-**Confidence Level:** ★★★★★ (5/5)
+Output:
+```text
+⚠️ Conflict: Mochi - Feed Breakfast (08:00-08:10) overlaps with Whiskers - Feed Breakfast (08:00-08:10).
+⚠️ Conflict: Mochi - Morning Walk (08:10-08:40) overlaps with Whiskers - Litter Box Cleaning (08:10-08:20).
+```
 
-Based on current results (all tests passing), the system is highly reliable for the implemented scope.
+### Example 2: Agent-style prioritization behavior in schedule output
+Input:
+- Mochi tasks include required feeding/walk tasks and one optional play task.
+
+Output:
+```text
+08:00-08:10 Feed Breakfast            high       10 min
+08:10-08:40 Morning Walk              high       30 min
+08:40-09:10 Afternoon Walk            high       30 min
+09:10-09:30 Playtime                  medium     20 min
+```
+
+### Example 3: Recurring task rollover
+Input:
+- Complete one daily task and one weekly task.
+
+Output:
+```text
+Completed Mochi task 't2' (daily).
+  Auto-created next daily task: t2-next-2026-03-29 due_date=2026-03-29 due_by=08:00
+Completed Whiskers task 't6' (weekly).
+  Auto-created next weekly task: t6-next-2026-04-04 due_date=2026-04-04 due_by=08:15
+```
+
+## Design Decisions and Trade-offs
+- I used clear domain classes (`Owner`, `Pet`, `Task`, `Scheduler`) to keep business rules testable and separate from UI code.
+- Scheduling is deterministic (required -> priority -> due time -> duration -> title), which improves explainability and repeatability.
+- I kept a straightforward overlap-based conflict detector rather than a more complex optimized approach because clarity and debuggability were more important for this project scale.
+- I chose string-based `HH:MM` and `YYYY-MM-DD` fields with strict validation for readability in UI/testing, accepting that richer date-time objects would be better for larger production systems.
+
+## Testing Summary
+- Current status: **32 tests passed** (`python -m pytest -q`).
+- What worked well: validation, ranking order, budget/window enforcement, sorting, filtering, recurrence rollover, and conflict warning detection.
+- What did not work initially: some edge-case behavior needed iteration during development (especially around recurrence and overlap reasoning), which was resolved by adding targeted tests.
+- What I learned: small deterministic rules become robust when each behavior has focused unit tests and observable output examples.
+
+## Reflection
+This project taught me that AI-oriented problem solving is strongest when design, implementation, and verification are tightly coupled. I learned to treat explainability as a product feature, not an afterthought, by making every scheduled item include a reason and by surfacing conflicts rather than hiding them. I also learned that practical trade-offs matter: a simpler, testable approach often wins over theoretical optimization for early-stage systems.
+
+## Demo Screenshot
+![PawPal App Demo](pawpal_demo.png)
