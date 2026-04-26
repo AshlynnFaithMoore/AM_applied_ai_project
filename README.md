@@ -56,6 +56,15 @@ What to verify in the UI after `streamlit run app.py`:
 ## Sample Interactions
 Below are examples captured from real runs.
 
+## Demo Walkthrough
+This walkthrough shows the system running end-to-end: enter owner and pet details, provide AI context inputs, generate a schedule, and review the plan, retrieved guidance, and guardrail warnings.
+
+1. Baseline planning: create an owner and pet, then generate a schedule for required care tasks. The app returns a ranked plan with explanations.
+2. Safety escalation: enter symptoms like `vomiting and not eating` plus medication names such as `nsaid, steroid`. The agentic layer adds an urgent vet task and warns about interaction risk.
+3. Recurring behavior: complete a daily or weekly task in the console demo to verify rollover creates the next occurrence.
+
+The screenshot below and the sample outputs in this README serve as the walkthrough artifact for the portfolio submission.
+
 ### Example 1: Conflict detection (main demo script)
 Input:
 - Owner has two pets (Mochi and Whiskers) with overlapping morning tasks.
