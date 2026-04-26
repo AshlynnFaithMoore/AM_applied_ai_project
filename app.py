@@ -149,21 +149,31 @@ if st.session_state.owner_initialized and st.session_state.owner is not None:
 
             category = st.selectbox("Category", ["walk", "feed", "meds", "enrichment", "grooming", "other"])
             required = st.checkbox("Required task", value=False)
+            due_by_input = st.text_input(
+                "Due by (HH:MM, optional)",
+                value="",
+                help="If provided, the task must finish by this time to be scheduled.",
+            )
             add_task = st.form_submit_button("Add task")
 
         if add_task and selected_pet is not None:
-            st.session_state.task_counter += 1
-            new_task = Task(
-                task_id=f"task-{st.session_state.task_counter}",
-                title=task_title,
-                category=category,
-                duration_minutes=int(duration),
-                priority=priority,
-                required=required,
-            )
-            selected_pet.add_task(new_task)
-            st.success(f"✅ Added task '{new_task.title}' to {selected_pet.name}.")
-            st.rerun()
+            try:
+                due_by_value = due_by_input.strip() or None
+                st.session_state.task_counter += 1
+                new_task = Task(
+                    task_id=f"task-{st.session_state.task_counter}",
+                    title=task_title,
+                    category=category,
+                    duration_minutes=int(duration),
+                    priority=priority,
+                    required=required,
+                    due_by=due_by_value,
+                )
+                selected_pet.add_task(new_task)
+                st.success(f"✅ Added task '{new_task.title}' to {selected_pet.name}.")
+                st.rerun()
+            except ValueError as exc:
+                st.error(f"Could not add task: {exc}")
 
         if selected_pet is not None and selected_pet.tasks:
             st.write(f"Current tasks for {selected_pet.name} (sorted by time):")

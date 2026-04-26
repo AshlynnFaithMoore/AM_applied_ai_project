@@ -395,6 +395,40 @@ class TestScheduler:
         # Plan with buffer should have fewer or same tasks
         assert len(plan_with_buffer) <= len(plan_no_buffer)
 
+    def test_scheduler_generate_plan_enforces_due_by_deadline(self) -> None:
+        """Test tasks that cannot finish by due_by are excluded from the plan."""
+        owner = Owner(owner_id="o1", name="Jordan", daily_time_budget_minutes=120)
+        pet = Pet(pet_id="p1", name="Mochi", species="dog")
+
+        impossible = Task(
+            task_id="t1",
+            title="Impossible Deadline",
+            category="walk",
+            duration_minutes=30,
+            priority="high",
+            required=True,
+            due_by="08:15",
+        )
+        feasible = Task(
+            task_id="t2",
+            title="Feasible Task",
+            category="feed",
+            duration_minutes=60,
+            priority="high",
+            required=True,
+            due_by="09:00",
+        )
+
+        pet.add_task(impossible)
+        pet.add_task(feasible)
+
+        scheduler = Scheduler()
+        plan = scheduler.generate_daily_plan(owner, pet)
+
+        planned_task_ids = {item["task_id"] for item in plan}
+        assert "t1" not in planned_task_ids
+        assert "t2" in planned_task_ids
+
     def test_scheduler_explain_plan(self) -> None:
         """Test that explanations are generated for tasks."""
         owner = Owner(owner_id="o1", name="Jordan", daily_time_budget_minutes=60)
