@@ -120,5 +120,11 @@ Concise reliability result:
 ## Reflection
 This project taught me that AI-oriented problem solving is strongest when design, implementation, and verification are tightly coupled. I learned to treat explainability as a product feature, not an afterthought, by making every scheduled item include a reason and by surfacing conflicts rather than hiding them. I also learned that practical trade-offs matter: a simpler, testable approach often wins over theoretical optimization for early-stage systems.
 
+## Responsible AI Reflection
+- **Limitations and bias:** the retriever uses a small, handcrafted local knowledge base, so coverage is narrow and may bias outputs toward the specific rules encoded in this project. Confidence scoring is heuristic, not calibrated against clinical outcomes, so it should be interpreted as internal signal strength, not medical certainty.
+- **Potential misuse and prevention:** this system could be misused as a replacement for veterinary diagnosis. To reduce that risk, the app uses guardrails that escalate red-flag symptoms, surfaces medication interaction warnings, logs agent actions, and keeps human review in the loop before action.
+- **Reliability surprise:** one surprising finding was how easy it was for apparently correct logic to be subtly wrong (for example, overdue-medication checks using mismatched date/time assumptions). Focused tests exposed this quickly and improved trust in the integrated path.
+- **AI collaboration:** AI was helpful when suggesting structured test coverage for edge cases around recurrence, conflict detection, and guardrails. A flawed AI suggestion appeared when optimizing conflict/overdue logic too aggressively without enough temporal nuance; it looked clean but produced incorrect behavior until corrected and re-tested.
+
 ## Demo Screenshot
 ![PawPal App Demo](pawpal_demo.png)
