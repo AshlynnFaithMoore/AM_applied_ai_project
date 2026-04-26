@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="title desc">
+  <title id="title">PawPal+ target architecture</title>
+  <desc id="desc">Flow diagram showing the target RAG plus agentic system, with human review and testing checkpoints.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f6f2e8; }
+      .panel { fill: #ffffff; stroke: #24333d; stroke-width: 2.5; rx: 18; ry: 18; }
+      .accent { fill: #1f6f8b; stroke: #1f6f8b; }
+      .soft { fill: #e7f2f6; stroke: #1f6f8b; }
+      .text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #172027; }
+      .title { font-size: 30px; font-weight: 700; }
+      .h { font-size: 22px; font-weight: 700; }
+      .b { font-size: 18px; }
+      .s { font-size: 15px; fill: #5a6872; }
+      .line { stroke: #24333d; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+      .dash { stroke-dasharray: 10 7; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#24333d"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1400" height="760"/>
+  <text class="text title" x="44" y="48">PawPal+ target architecture</text>
+  <text class="text s" x="44" y="76">Target design with RAG plus agentic behavior, human review, and testing checkpoints</text>
+
+  <rect class="panel accent" x="44" y="130" width="190" height="94" rx="18" ry="18"/>
+  <text class="text h" x="139" y="168" text-anchor="middle" fill="#ffffff">Human user</text>
+  <text class="text s" x="139" y="193" text-anchor="middle" fill="#eef8fb">input and review</text>
+
+  <rect class="panel" x="278" y="118" width="220" height="118" rx="18" ry="18"/>
+  <text class="text h" x="388" y="160" text-anchor="middle">Streamlit app</text>
+  <text class="text b" x="388" y="188" text-anchor="middle">app.py</text>
+  <text class="text s" x="388" y="212" text-anchor="middle">UI entry point</text>
+
+  <rect class="panel soft" x="560" y="54" width="250" height="100" rx="18" ry="18"/>
+  <text class="text h" x="685" y="96" text-anchor="middle">Retriever / RAG</text>
+  <text class="text b" x="685" y="122" text-anchor="middle">pet-care knowledge base</text>
+
+  <rect class="panel soft" x="560" y="188" width="250" height="100" rx="18" ry="18"/>
+  <text class="text h" x="685" y="230" text-anchor="middle">Agentic layer</text>
+  <text class="text b" x="685" y="256" text-anchor="middle">prioritize and escalate</text>
+
+  <rect class="panel" x="884" y="118" width="290" height="118" rx="18" ry="18"/>
+  <text class="text h" x="1029" y="160" text-anchor="middle">Owner / Pet / Task</text>
+  <text class="text b" x="1029" y="188" text-anchor="middle">pawpal_system.py</text>
+  <text class="text s" x="1029" y="212" text-anchor="middle">domain model and validation</text>
+
+  <rect class="panel" x="884" y="292" width="290" height="100" rx="18" ry="18"/>
+  <text class="text h" x="1029" y="334" text-anchor="middle">Scheduler</text>
+  <text class="text b" x="1029" y="360" text-anchor="middle">daily plan and explanations</text>
+
+  <rect class="panel" x="1214" y="292" width="144" height="100" rx="18" ry="18"/>
+  <text class="text h" x="1286" y="334" text-anchor="middle">Output</text>
+  <text class="text b" x="1286" y="360" text-anchor="middle">plan and warnings</text>
+
+  <rect class="panel" x="884" y="462" width="290" height="102" rx="18" ry="18"/>
+  <text class="text h" x="1029" y="505" text-anchor="middle">pytest suite</text>
+  <text class="text b" x="1029" y="532" text-anchor="middle">tests/test_pawpal.py</text>
+  <text class="text s" x="1029" y="556" text-anchor="middle">automated verification</text>
+
+  <rect class="panel" x="1214" y="462" width="144" height="102" rx="18" ry="18"/>
+  <text class="text h" x="1286" y="507" text-anchor="middle">Human</text>
+  <text class="text b" x="1286" y="533" text-anchor="middle">review</text>
+
+  <path class="line" d="M234 177 L278 177"/>
+  <path class="line" d="M498 177 L560 104"/>
+  <path class="line" d="M498 177 L560 238"/>
+  <path class="line" d="M810 104 L884 164"/>
+  <path class="line" d="M810 238 L884 164"/>
+  <path class="line" d="M1030 236 L1030 292"/>
+  <path class="line" d="M1174 342 L1214 342"/>
+  <path class="line" d="M1286 292 L1286 236 L1070 236"/>
+
+  <path class="line dash" d="M1174 513 L1214 513"/>
+  <path class="line dash" d="M1286 462 L1286 392 L1029 392 L1029 286"/>
+  <path class="line dash" d="M685 288 L685 462 L884 513"/>
+
+  <text class="text s" x="590" y="88">knowledge retrieval</text>
+  <text class="text s" x="590" y="212">agent decision</text>
+  <text class="text s" x="1160" y="274">schedule generation</text>
+  <text class="text s" x="1185" y="446">manual confirmation</text>
+  <text class="text s" x="1088" y="606">tests validate ranking, filtering, recurrence, conflict detection, and escalation rules</text>
+</svg>

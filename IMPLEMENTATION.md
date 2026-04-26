@@ -9,6 +9,10 @@ The implementation follows the **Aggregation via Owner (Pattern 1)** design for 
 - **Pet** remains passive, storing pet profile and task list
 - **Task** is a data-heavy class with validation and utility methods
 
+## Diagram Asset
+
+The target architecture diagram is stored separately in [assets/pawpal_target_architecture.mmd](assets/pawpal_target_architecture.mmd) and rendered as [assets/pawpal_target_architecture.svg](assets/pawpal_target_architecture.svg). It shows the intended RAG plus agentic flow, along with the human review and testing checkpoints.
+
 ## Key Design Decisions
 
 ### 1. Single vs. Multi-Pet Support

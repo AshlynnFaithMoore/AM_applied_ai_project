@@ -1,0 +1,29 @@
+flowchart LR
+    User[Human user]
+    UI[Streamlit app\n(app.py)]
+    KB[Pet care knowledge base]
+    Retriever[Retriever / RAG layer]
+    Agent[Agentic decision layer]
+    Models[Owner / Pet / Task models\n(pawpal_system.py)]
+    Scheduler[Scheduler]
+    Output[Plan, explanations,\nconflict warnings]
+    Tester[pytest suite\n(tests/test_pawpal.py)]
+    Reviewer[Human review]
+
+    User --> UI
+    UI --> Retriever
+    Retriever --> KB
+    Retriever --> Agent
+    Agent --> Models
+    Models --> Scheduler
+    Scheduler --> Output
+    Output --> User
+
+    Output --> Reviewer
+    Tester --> Models
+    Tester --> Scheduler
+    Tester --> Output
+
+    Agent -. urgent medication / escalation .-> Output
+    Agent -. prioritize tasks .-> Scheduler
+    Reviewer -. confirms / adjusts .-> UI
