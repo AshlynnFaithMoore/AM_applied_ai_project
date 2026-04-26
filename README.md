@@ -137,3 +137,8 @@ This project taught me that AI-oriented problem solving is strongest when design
 
 ## Demo Screenshot
 ![PawPal App Demo](pawpal_demo.png)
+
+## Portfolio Artifact
+GitHub code: [https://github.com/AshlynnFaithMoore/AM_applied_ai_project](https://github.com/AshlynnFaithMoore/AM_applied_ai_project)
+
+As an AI engineer, this project shows that I build systems that are useful, testable, and responsible. I can turn a concept into working software, integrate retrieval and guardrails into the main application path, and validate behavior with automated tests and human review rather than relying on surface-level output.
