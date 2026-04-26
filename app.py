@@ -292,13 +292,25 @@ if st.session_state.owner_initialized and st.session_state.owner is not None and
                 )
                 owner = st.session_state.owner
                 scheduler = Scheduler(strategy="priority_first", buffer_minutes=0)
-                agentic_result = scheduler.generate_agentic_plan(
-                    owner,
-                    schedule_pet,
-                    question=user_question,
-                    symptoms=symptom_notes,
-                    medications=active_medications,
-                )
+                # Build plans for all pets through the same agentic pipeline so
+                # conflict detection reflects the actual AI-assisted behavior.
+                all_agentic_results: dict[str, dict] = {}
+                for pet in owner.get_pets():
+                    if not pet.get_active_tasks():
+                        continue
+                    all_agentic_results[pet.pet_id] = scheduler.generate_agentic_plan(
+                        owner,
+                        pet,
+                        question=user_question,
+                        symptoms=symptom_notes,
+                        medications=active_medications,
+                    )
+
+                agentic_result = all_agentic_results.get(schedule_pet.pet_id)
+                if agentic_result is None:
+                    st.info("No active tasks found for the selected pet.")
+                    st.stop()
+
                 plan = agentic_result["plan"]
                 logger.info(
                     "Generated plan for pet=%s tasks=%s confidence=%.2f",
@@ -309,9 +321,10 @@ if st.session_state.owner_initialized and st.session_state.owner is not None and
 
                 # Detect cross-pet conflicts and show non-fatal warnings.
                 all_pet_plans = {
-                    pet.name: scheduler.generate_daily_plan(owner, pet)
+                    pet.name: result["plan"]
+                    for pet_id, result in all_agentic_results.items()
                     for pet in owner.get_pets()
-                    if pet.get_active_tasks()
+                    if pet.pet_id == pet_id
                 }
                 conflict_warnings = scheduler.detect_schedule_conflicts(all_pet_plans)
 
