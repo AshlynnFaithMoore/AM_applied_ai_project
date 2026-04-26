@@ -1,6 +1,14 @@
+import logging
+
 import streamlit as st
 
 from pawpal_system import Owner, Pet, Task, Scheduler
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -241,6 +249,24 @@ if st.session_state.owner_initialized and st.session_state.owner is not None and
     schedule_pet_id = schedule_pet_options[schedule_pet_label]
     schedule_pet = get_pet_by_id(st.session_state.owner, schedule_pet_id)
 
+    st.markdown("### AI Context Inputs")
+    st.caption("These inputs are actively used by retrieval and agentic guardrails.")
+    user_question = st.text_area(
+        "Question for AI planner",
+        value="Prioritize the safest care plan for today.",
+        help="Used by the retriever to pull relevant pet-care guidance.",
+    )
+    symptom_notes = st.text_area(
+        "Symptoms observed",
+        value="",
+        help="Red-flag symptoms can trigger urgent vet escalation guardrails.",
+    )
+    active_medications = st.text_input(
+        "Active medications (comma-separated)",
+        value="",
+        help="Used to check medication interaction guardrails (example: nsaid, steroid).",
+    )
+
     if st.button("Generate schedule"):
         if schedule_pet is None:
             st.error("Could not find selected pet.")
@@ -248,9 +274,28 @@ if st.session_state.owner_initialized and st.session_state.owner is not None and
             st.warning("⚠️ Please add at least one task before generating a schedule.")
         else:
             try:
+                logger.info(
+                    "Generating agentic schedule for pet=%s symptoms_provided=%s meds_provided=%s",
+                    schedule_pet.name,
+                    bool(symptom_notes.strip()),
+                    bool(active_medications.strip()),
+                )
                 owner = st.session_state.owner
                 scheduler = Scheduler(strategy="priority_first", buffer_minutes=0)
-                plan = scheduler.generate_daily_plan(owner, schedule_pet)
+                agentic_result = scheduler.generate_agentic_plan(
+                    owner,
+                    schedule_pet,
+                    question=user_question,
+                    symptoms=symptom_notes,
+                    medications=active_medications,
+                )
+                plan = agentic_result["plan"]
+                logger.info(
+                    "Generated plan for pet=%s tasks=%s confidence=%.2f",
+                    schedule_pet.name,
+                    len(plan),
+                    agentic_result["confidence"],
+                )
 
                 # Detect cross-pet conflicts and show non-fatal warnings.
                 all_pet_plans = {
@@ -262,6 +307,25 @@ if st.session_state.owner_initialized and st.session_state.owner is not None and
 
                 if plan:
                     st.success(f"✅ Daily schedule generated for {schedule_pet.name}!")
+
+                    st.metric("AI Confidence", f"{agentic_result['confidence']:.2f}")
+
+                    if agentic_result["guardrail_warnings"]:
+                        st.warning("Guardrails triggered. Review details before acting on the plan.")
+                        for warning in agentic_result["guardrail_warnings"]:
+                            st.write(f"- {warning}")
+
+                    if agentic_result["agent_actions"]:
+                        with st.expander("View agent actions"):
+                            for action in agentic_result["agent_actions"]:
+                                st.write(f"- {action}")
+
+                    with st.expander("Retrieved Knowledge Context"):
+                        for context in agentic_result["retrieved_context"]:
+                            st.write(
+                                f"- [{context['source']}] {context['topic']} "
+                                f"(confidence={context['confidence']:.2f}): {context['content']}"
+                            )
 
                     if conflict_warnings:
                         st.warning(
@@ -286,7 +350,7 @@ if st.session_state.owner_initialized and st.session_state.owner is not None and
                     st.table(schedule_data)
 
                     st.markdown("### Why This Schedule")
-                    explanations = scheduler.explain_plan(owner, plan)
+                    explanations = agentic_result["explanations"]
                     for i, reason in enumerate(explanations, 1):
                         st.write(f"{i}. {reason}")
 
@@ -300,6 +364,7 @@ if st.session_state.owner_initialized and st.session_state.owner is not None and
                 else:
                     st.info("No tasks could be scheduled. Try increasing budget or reducing task durations.")
             except Exception as exc:
+                logger.exception("Failed to generate schedule for selected pet")
                 st.error(f"❌ Error generating schedule: {exc}")
 else:
     st.info("Create an owner and add a pet to generate a schedule.")

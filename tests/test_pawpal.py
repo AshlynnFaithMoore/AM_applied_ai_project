@@ -596,3 +596,83 @@ class TestScheduler:
         warnings = scheduler.detect_schedule_conflicts(pet_plans)
 
         assert warnings == []
+
+    def test_retrieve_knowledge_returns_relevant_snippets(self) -> None:
+        """Test retriever returns domain context based on species and user query context."""
+        pet = Pet(pet_id="p1", name="Mochi", species="dog", care_notes="Active and food motivated")
+        pet.add_task(
+            Task(
+                task_id="t1",
+                title="Feed Breakfast",
+                category="feed",
+                duration_minutes=10,
+                priority="medium",
+            )
+        )
+
+        scheduler = Scheduler()
+        retrieved = scheduler.retrieve_knowledge(
+            pet,
+            question="How should I handle medication timing today?",
+            symptoms="not eating since morning",
+            medications="nsaid",
+        )
+
+        assert len(retrieved) > 0
+        topics = {item["topic"] for item in retrieved}
+        assert "medication_safety" in topics
+        assert "feeding_guidelines" in topics
+
+    def test_generate_agentic_plan_adds_urgent_vet_task_for_red_flags(self) -> None:
+        """Test red-flag symptoms trigger urgent vet escalation in the generated plan."""
+        owner = Owner(owner_id="o1", name="Jordan", daily_time_budget_minutes=60)
+        pet = Pet(pet_id="p1", name="Mochi", species="dog")
+        pet.add_task(
+            Task(
+                task_id="t1",
+                title="Morning Walk",
+                category="walk",
+                duration_minutes=20,
+                priority="medium",
+            )
+        )
+
+        scheduler = Scheduler()
+        result = scheduler.generate_agentic_plan(
+            owner,
+            pet,
+            question="What should I prioritize?",
+            symptoms="vomiting and lethargy",
+            medications="",
+        )
+
+        plan_titles = {item["task_title"] for item in result["plan"]}
+        assert "Urgent Vet Call" in plan_titles
+        assert any("Red-flag symptoms detected" in warning for warning in result["guardrail_warnings"])
+
+    def test_generate_agentic_plan_flags_medication_interaction(self) -> None:
+        """Test medication interaction guardrail is surfaced in agentic output."""
+        owner = Owner(owner_id="o1", name="Jordan", daily_time_budget_minutes=60)
+        pet = Pet(pet_id="p1", name="Mochi", species="dog")
+        pet.add_task(
+            Task(
+                task_id="t1",
+                title="Give Medication",
+                category="meds",
+                duration_minutes=10,
+                priority="medium",
+                due_by="23:59",
+            )
+        )
+
+        scheduler = Scheduler()
+        result = scheduler.generate_agentic_plan(
+            owner,
+            pet,
+            question="Any risks today?",
+            symptoms="",
+            medications="nsaid, steroid",
+        )
+
+        assert any("Potential medication interaction" in warning for warning in result["guardrail_warnings"])
+        assert 0.0 <= result["confidence"] <= 1.0

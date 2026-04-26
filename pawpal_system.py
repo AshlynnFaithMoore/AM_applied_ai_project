@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+import logging
 from typing import Optional, TypedDict
 
 # Priority mapping for sorting and weighting
@@ -17,6 +18,67 @@ class ScheduleItem(TypedDict):
     start_time: str
     end_time: str
     reason: str
+
+
+class RetrievedKnowledge(TypedDict):
+    """Represents one retrieved knowledge snippet used by the planner."""
+    topic: str
+    content: str
+    source: str
+    confidence: float
+
+
+class AgenticPlanResult(TypedDict):
+    """Represents an end-to-end agentic planning response."""
+    plan: list[ScheduleItem]
+    explanations: list[str]
+    retrieved_context: list[RetrievedKnowledge]
+    agent_actions: list[str]
+    guardrail_warnings: list[str]
+    confidence: float
+
+
+KNOWLEDGE_BASE: list[dict[str, str | list[str]]] = [
+    {
+        "topic": "feeding_guidelines",
+        "source": "kb:feeding",
+        "content": "Dogs and cats should have consistent meal windows. Reduced appetite with lethargy can signal illness and should be monitored closely.",
+        "keywords": ["feed", "feeding", "appetite", "not eating", "meal"],
+    },
+    {
+        "topic": "medication_safety",
+        "source": "kb:medication",
+        "content": "Medication schedules should be time-accurate. Missed or delayed doses for required medication should be escalated as urgent follow-up tasks.",
+        "keywords": ["meds", "medication", "dose", "missed", "delayed", "pill"],
+    },
+    {
+        "topic": "dog_breed_needs",
+        "source": "kb:breed-dog",
+        "content": "Active dogs generally need structured exercise and enrichment daily to avoid stress behaviors.",
+        "keywords": ["dog", "walk", "exercise", "breed", "enrichment"],
+    },
+    {
+        "topic": "cat_breed_needs",
+        "source": "kb:breed-cat",
+        "content": "Cats benefit from predictable feeding and litter routines. Sudden appetite changes can be clinically relevant.",
+        "keywords": ["cat", "litter", "feeding", "appetite", "routine"],
+    },
+]
+
+MEDICATION_INTERACTION_RISKS: dict[tuple[str, str], str] = {
+    ("nsaid", "steroid"): "Potential medication interaction: NSAID + steroid can increase GI risk. Contact a vet before combining.",
+    ("acepromazine", "tramadol"): "Potential medication interaction: sedation overlap may occur with acepromazine + tramadol.",
+}
+
+RED_FLAG_SYMPTOMS = {
+    "seizure",
+    "bleeding",
+    "collapse",
+    "labored breathing",
+    "vomiting",
+    "lethargy",
+    "not eating",
+}
 
 
 def _parse_hhmm(value: str) -> datetime:
@@ -215,6 +277,148 @@ class Scheduler:
         self.strategy = strategy
         self.buffer_minutes = buffer_minutes
         self.plan: list[ScheduleItem] = []
+        self.logger = logging.getLogger(__name__)
+
+    def _clone_task(self, task: Task) -> Task:
+        """Create a safe copy so agentic transforms do not mutate original task state."""
+        return Task(
+            task_id=task.task_id,
+            title=task.title,
+            category=task.category,
+            duration_minutes=task.duration_minutes,
+            priority=task.priority,
+            frequency=task.frequency,
+            due_date=task.due_date,
+            required=task.required,
+            due_by=task.due_by,
+            active=task.active,
+            completed=task.completed,
+        )
+
+    def retrieve_knowledge(
+        self,
+        pet: Pet,
+        question: str = "",
+        symptoms: str = "",
+        medications: str = "",
+    ) -> list[RetrievedKnowledge]:
+        """Retrieve pet-care guidance snippets relevant to the current user context."""
+        query = " ".join(
+            [
+                pet.species,
+                pet.care_notes,
+                question,
+                symptoms,
+                medications,
+                " ".join(task.title for task in pet.get_active_tasks()),
+            ]
+        ).lower()
+
+        retrieved: list[RetrievedKnowledge] = []
+        for entry in KNOWLEDGE_BASE:
+            keywords = [str(keyword).lower() for keyword in entry["keywords"]]
+            hit_count = sum(1 for keyword in keywords if keyword in query)
+            if hit_count == 0:
+                continue
+            confidence = min(0.98, 0.45 + (0.1 * hit_count))
+            retrieved.append(
+                {
+                    "topic": str(entry["topic"]),
+                    "content": str(entry["content"]),
+                    "source": str(entry["source"]),
+                    "confidence": round(confidence, 2),
+                }
+            )
+
+        if not retrieved:
+            retrieved.append(
+                {
+                    "topic": "general_pet_safety",
+                    "content": "No specific guideline matched this context. Follow baseline care plan and consult a vet if symptoms worsen.",
+                    "source": "kb:general",
+                    "confidence": 0.4,
+                }
+            )
+
+        self.logger.info("Retrieved %s knowledge snippet(s) for pet=%s", len(retrieved), pet.name)
+        return retrieved
+
+    def _apply_agentic_guardrails(
+        self,
+        owner: Owner,
+        pet: Pet,
+        retrieved_context: list[RetrievedKnowledge],
+        symptoms: str = "",
+        medications: str = "",
+    ) -> tuple[list[Task], list[str], list[str], float]:
+        """Apply guardrails and agentic task transforms before scheduling."""
+        transformed_tasks = [self._clone_task(task) for task in pet.get_active_tasks()]
+        agent_actions: list[str] = []
+        guardrail_warnings: list[str] = []
+
+        now_time = datetime.now()
+        now_minutes = now_time.hour * 60 + now_time.minute
+
+        for task in transformed_tasks:
+            if task.category == "meds" and task.due_by is not None and not task.completed:
+                due_dt = _parse_hhmm(task.due_by)
+                due_minutes = due_dt.hour * 60 + due_dt.minute
+                if due_minutes < now_minutes:
+                    task.required = True
+                    task.priority = "high"
+                    action = f"Escalated overdue medication task '{task.title}' to required/high."
+                    agent_actions.append(action)
+                    guardrail_warnings.append(
+                        f"Medication task '{task.title}' appears overdue based on due_by={task.due_by}."
+                    )
+
+        normalized_symptoms = symptoms.lower().strip()
+        if normalized_symptoms and any(flag in normalized_symptoms for flag in RED_FLAG_SYMPTOMS):
+            urgent_task_exists = any(task.category == "vet" for task in transformed_tasks)
+            if not urgent_task_exists:
+                urgent_task = Task(
+                    task_id=f"agent-urgent-vet-{pet.pet_id}",
+                    title="Urgent Vet Call",
+                    category="vet",
+                    duration_minutes=15,
+                    priority="high",
+                    required=True,
+                    due_by=owner.preferred_start_time,
+                )
+                transformed_tasks.append(urgent_task)
+                agent_actions.append("Inserted urgent vet escalation task from symptom guardrail.")
+                guardrail_warnings.append(
+                    "Red-flag symptoms detected. Vet follow-up was added as an urgent task."
+                )
+
+        med_list = sorted(
+            {
+                med.strip().lower()
+                for med in medications.split(",")
+                if med.strip()
+            }
+        )
+        for i in range(len(med_list)):
+            for j in range(i + 1, len(med_list)):
+                pair = (med_list[i], med_list[j])
+                if pair in MEDICATION_INTERACTION_RISKS:
+                    warning = MEDICATION_INTERACTION_RISKS[pair]
+                    guardrail_warnings.append(warning)
+                    agent_actions.append("Flagged medication interaction risk from retrieved safety rules.")
+
+        context_signal = sum(item["confidence"] for item in retrieved_context) / max(1, len(retrieved_context))
+        risk_penalty = min(0.35, 0.05 * len(guardrail_warnings))
+        confidence = max(0.1, min(0.99, context_signal - risk_penalty + 0.2))
+        confidence = round(confidence, 2)
+
+        self.logger.info(
+            "Agentic guardrails for pet=%s actions=%s warnings=%s confidence=%s",
+            pet.name,
+            len(agent_actions),
+            len(guardrail_warnings),
+            confidence,
+        )
+        return transformed_tasks, agent_actions, guardrail_warnings, confidence
 
     def _due_sort_value(self, task: Task) -> int:
         """Return sort key for task's due_by time (early times first)."""
@@ -270,14 +474,19 @@ class Scheduler:
             ),
         )
 
-    def generate_daily_plan(self, owner: Owner, pet: Pet) -> list[ScheduleItem]:
+    def generate_daily_plan(
+        self,
+        owner: Owner,
+        pet: Pet,
+        candidate_tasks: Optional[list[Task]] = None,
+    ) -> list[ScheduleItem]:
         """Build and cache a daily schedule for the pet within owner's constraints.
 
         Returns:
             List of ScheduleItem dicts with task, timing, and reasoning.
         """
         # Get ranked tasks for this pet
-        active_tasks = pet.get_active_tasks()
+        active_tasks = candidate_tasks if candidate_tasks is not None else pet.get_active_tasks()
         ranked_tasks = self.rank_tasks(active_tasks)
 
         # Calculate available time
@@ -330,6 +539,43 @@ class Scheduler:
             current_time = task_end_time
 
         return self.plan
+
+    def generate_agentic_plan(
+        self,
+        owner: Owner,
+        pet: Pet,
+        question: str = "",
+        symptoms: str = "",
+        medications: str = "",
+    ) -> AgenticPlanResult:
+        """Run end-to-end retrieval + agentic adjustment + scheduling pipeline."""
+        try:
+            retrieved_context = self.retrieve_knowledge(
+                pet,
+                question=question,
+                symptoms=symptoms,
+                medications=medications,
+            )
+            candidate_tasks, agent_actions, guardrail_warnings, confidence = self._apply_agentic_guardrails(
+                owner,
+                pet,
+                retrieved_context,
+                symptoms=symptoms,
+                medications=medications,
+            )
+            plan = self.generate_daily_plan(owner, pet, candidate_tasks=candidate_tasks)
+            explanations = self.explain_plan(owner, plan)
+            return {
+                "plan": plan,
+                "explanations": explanations,
+                "retrieved_context": retrieved_context,
+                "agent_actions": agent_actions,
+                "guardrail_warnings": guardrail_warnings,
+                "confidence": confidence,
+            }
+        except Exception as exc:
+            self.logger.exception("Agentic plan generation failed for pet=%s", pet.name)
+            raise ValueError(f"Agentic planning failed: {exc}") from exc
 
     def explain_plan(self, owner: Owner, plan: Optional[list[ScheduleItem]] = None) -> list[str]:
         """Return human-readable explanations for plan selection.
