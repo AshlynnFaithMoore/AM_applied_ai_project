@@ -395,39 +395,61 @@ class TestScheduler:
         # Plan with buffer should have fewer or same tasks
         assert len(plan_with_buffer) <= len(plan_no_buffer)
 
-    def test_scheduler_generate_plan_enforces_due_by_deadline(self) -> None:
-        """Test tasks that cannot finish by due_by are excluded from the plan."""
+    def test_scheduler_generate_plan_enforces_due_by_start_deadline(self) -> None:
+        """Test tasks that start after due_by are excluded from the plan."""
         owner = Owner(owner_id="o1", name="Jordan", daily_time_budget_minutes=120)
         pet = Pet(pet_id="p1", name="Mochi", species="dog")
 
-        impossible = Task(
+        first = Task(
             task_id="t1",
-            title="Impossible Deadline",
+            title="First Task",
             category="walk",
-            duration_minutes=30,
+            duration_minutes=20,
+            priority="high",
+            required=True,
+            due_by="08:00",
+        )
+        late_start = Task(
+            task_id="t2",
+            title="Late Start",
+            category="feed",
+            duration_minutes=10,
             priority="high",
             required=True,
             due_by="08:15",
         )
-        feasible = Task(
-            task_id="t2",
-            title="Feasible Task",
-            category="feed",
-            duration_minutes=60,
-            priority="high",
-            required=True,
-            due_by="09:00",
-        )
 
-        pet.add_task(impossible)
-        pet.add_task(feasible)
+        pet.add_task(first)
+        pet.add_task(late_start)
 
         scheduler = Scheduler()
         plan = scheduler.generate_daily_plan(owner, pet)
 
         planned_task_ids = {item["task_id"] for item in plan}
-        assert "t1" not in planned_task_ids
-        assert "t2" in planned_task_ids
+        assert "t1" in planned_task_ids
+        assert "t2" not in planned_task_ids
+
+    def test_scheduler_generate_plan_allows_start_exactly_at_due_by(self) -> None:
+        """Test a task is allowed when its start time equals due_by exactly."""
+        owner = Owner(owner_id="o1", name="Jordan", daily_time_budget_minutes=60)
+        pet = Pet(pet_id="p1", name="Mochi", species="dog")
+
+        walk = Task(
+            task_id="t1",
+            title="Morning Walk",
+            category="walk",
+            duration_minutes=30,
+            priority="high",
+            required=True,
+            due_by="08:00",
+        )
+        pet.add_task(walk)
+
+        scheduler = Scheduler()
+        plan = scheduler.generate_daily_plan(owner, pet)
+
+        planned_task_ids = {item["task_id"] for item in plan}
+        assert "t1" in planned_task_ids
 
     def test_scheduler_explain_plan(self) -> None:
         """Test that explanations are generated for tasks."""

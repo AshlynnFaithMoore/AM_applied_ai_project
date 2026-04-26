@@ -514,10 +514,10 @@ class Scheduler:
             if task_end_time > end_window:
                 continue
 
-            # If due_by is set, the task must finish by that deadline.
+            # If due_by is set, the task must start by that deadline.
             if task.due_by is not None:
                 due_by_time = _parse_hhmm(task.due_by)
-                if task_end_time > due_by_time:
+                if current_time > due_by_time:
                     continue
 
             # Generate explanation for selection
