@@ -59,6 +59,8 @@ Below are examples captured from real runs.
 ## Demo Walkthrough
 This walkthrough shows the system running end-to-end: enter owner and pet details, provide AI context inputs, generate a schedule, and review the plan, retrieved guidance, and guardrail warnings.
 
+Loom walkthrough: [https://www.loom.com/looms?show_pin_extension=true](https://www.loom.com/looms?show_pin_extension=true)
+
 1. Baseline planning: create an owner and pet, then generate a schedule for required care tasks. The app returns a ranked plan with explanations.
 2. Safety escalation: enter symptoms like `vomiting and not eating` plus medication names such as `nsaid, steroid`. The agentic layer adds an urgent vet task and warns about interaction risk.
 3. Recurring behavior: complete a daily or weekly task in the console demo to verify rollover creates the next occurrence.
